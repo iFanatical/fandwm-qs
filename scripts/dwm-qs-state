@@ -28,6 +28,19 @@ clean_line() {
 	tr '\r\n' '  ' | sed 's/[[:space:]][[:space:]]*/ /g; s/^ //; s/ $//'
 }
 
+# Decode xprop's C-style string escaping back into raw bytes. xprop renders a
+# STRING/UTF8_STRING property with \n \t \\ \" for those characters and octal
+# \ooo for every other 8-bit / non-printable byte — so UTF-8 text (icons, CJK,
+# accents) arrives as literal \342\234\263 etc. We normalise octal to printf's
+# \0ooo form and let `printf %b` decode: it interprets backslash escapes in its
+# operand but treats %-directives literally, so arbitrary title text is safe.
+# Reads stdin, writes decoded bytes to stdout.
+unescape_xprop() {
+	data=$(cat)
+	data=$(printf '%s' "$data" | sed 's/\\\([0-7][0-7][0-7]\)/\\0\1/g; s/\\"/"/g')
+	printf '%b' "$data"
+}
+
 root_property_value() {
 	xprop -root "$1" 2>/dev/null | sed -n 's/^[^=]*= //p'
 }
@@ -96,7 +109,7 @@ show_state() {
 	#   monitor<TAB>num x y w h selMask occMask isSelected layout
 	xprop -root _DWM_MONITORS 2>/dev/null |
 		sed -n 's/^_DWM_MONITORS[^=]*= "\(.*\)"$/\1/p' |
-		sed 's/\\n/\n/g' |
+		unescape_xprop |
 		while IFS= read -r rec; do
 			[ -n "$rec" ] && printf 'monitor\t%s\n' "$rec"
 		done
