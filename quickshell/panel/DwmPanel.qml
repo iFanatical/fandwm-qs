@@ -86,7 +86,19 @@ PanelWindow {
             verticalAlignment: Text.AlignVCenter
         }
 
-        Item { Layout.fillWidth: true }
+        // Focused window title for this monitor. Fills the gap between the
+        // left group and the status widgets; elides so a long title never
+        // pushes the right-hand widgets off screen.
+        Text {
+            Layout.fillWidth: true
+            text: root.mon ? (root.mon.title || "") : ""
+            color: Theme.textStrong
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.panelFontSize
+            elide: Text.ElideRight
+            horizontalAlignment: Text.AlignLeft
+            verticalAlignment: Text.AlignVCenter
+        }
 
         // Optional status segments (from root WM_NAME, dwmblocks-style)
         Repeater {

@@ -17,10 +17,15 @@ static const int topbar             = 1;        /* 0 means bottom bar */
 static const int barheight          = 28;
 static const char *fonts[]          = { "JetBrainsMonoNL Nerd Font Propo:bold:pixelsize=14:antialias=true" };
 static const char dmenufont[]       = "JetBrainsMono Nerd Font Propo:size=14";
+/* Title of the QuickShell app launcher window (FloatingWindow.title in
+ * quickshell/core/AppLauncher.qml). dwm manages any window whose title
+ * contains this string as a borderless, fullscreen, floating overlay so it
+ * can hold keyboard focus like a normal client. */
+static const char launchertitle[]   = "fandwm-launcher";
 static unsigned int baralpha        = 0xf2;
 static unsigned int borderalpha     = OPAQUE;
 static const char col_bg[]          = "#1a1b26";
-static const char col_border[]      = "#777777";
+static const char col_border[]      = "#dddddd";
 static const char col_fg[]          = "#dddddd";
 static const char col_black[] 	    = "#32344a";
 static const char col_red[]	    = "#f7768e";

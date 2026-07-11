@@ -30,7 +30,10 @@ Scope {
                         selMask: parseInt(f[5], 10) || 0,
                         occMask: parseInt(f[6], 10) || 0,
                         sel: f[7] === "1",
-                        layout: f.slice(8).join(" ")
+                        // Layout is a single space-free token; the title is
+                        // the remainder and may contain spaces.
+                        layout: f[8] || "",
+                        title: f.slice(9).join(" ")
                     });
                 continue;
             }

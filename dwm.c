@@ -1159,6 +1159,7 @@ manage(Window w, XWindowAttributes *wa)
 	Client *c, *t = NULL, *term = NULL;
 	Window trans = None;
 	XWindowChanges wc;
+	int islauncher;
 
 	c = ecalloc(1, sizeof(Client));
 	c->win = w;
@@ -1171,6 +1172,10 @@ manage(Window w, XWindowAttributes *wa)
 	c->oldbw = wa->border_width;
 
 	updatetitle(c);
+	/* Recognise the QuickShell launcher (config.def.h:launchertitle) so it is
+	 * managed as a borderless, fullscreen, floating overlay able to hold
+	 * keyboard focus like any client. */
+	islauncher = strstr(c->name, launchertitle) != NULL;
 	if (XGetTransientForHint(dpy, w, &trans) && (t = wintoclient(trans))) {
 		c->mon = t->mon;
 		c->tags = t->tags;
@@ -1186,7 +1191,7 @@ manage(Window w, XWindowAttributes *wa)
 		c->y = c->mon->wy + c->mon->wh - HEIGHT(c);
 	c->x = MAX(c->x, c->mon->wx);
 	c->y = MAX(c->y, c->mon->wy);
-	c->bw = borderpx;
+	c->bw = islauncher ? 0 : borderpx;
 
 	wc.border_width = c->bw;
 	XConfigureWindow(dpy, w, CWBorderWidth, &wc);
@@ -1197,6 +1202,14 @@ manage(Window w, XWindowAttributes *wa)
 	updatewmhints(c);
 	c->x = c->mon->mx + (c->mon->mw - WIDTH(c)) / 2;
 	c->y = c->mon->my + (c->mon->mh - HEIGHT(c)) / 2;
+	if (islauncher) {
+		/* Fullscreen, floating overlay covering the whole monitor. */
+		c->isfloating = 1;
+		c->x = c->mon->mx;
+		c->y = c->mon->my;
+		c->w = c->mon->mw;
+		c->h = c->mon->mh;
+	}
 	XSelectInput(dpy, w, EnterWindowMask|FocusChangeMask|PropertyChangeMask|StructureNotifyMask);
 	grabbuttons(c, 0);
 	if (!c->isfloating)
@@ -1404,8 +1417,10 @@ propertynotify(XEvent *e)
 		}
 		if (ev->atom == XA_WM_NAME || ev->atom == netatom[NetWMName]) {
 			updatetitle(c);
-			if (c == c->mon->sel)
+			if (c == c->mon->sel) {
 				drawbar(c->mon);
+				updatemonitors();
+			}
 		}
 		if (ev->atom == netatom[NetWMWindowType])
 			updatewindowtype(c);
@@ -2481,13 +2496,16 @@ updatelayout(void)
 
 /* Publish per-monitor tag state so each QuickShell bar can show its own
  * monitor's tags. One line per monitor, change-guarded:
- *   num x y w h selectedMask occupiedMask isSelected layout */
+ *   num x y w h selectedMask occupiedMask isSelected layout title
+ * The layout symbol is a single space-free token, so everything after it is
+ * the (possibly space-containing) title of the monitor's selected client. */
 void
 updatemonitors(void)
 {
-	static char last[2048] = {0};
-	char buf[2048];
-	char line[256];
+	static char last[4096] = {0};
+	char buf[4096];
+	char line[512];
+	char title[256];
 	unsigned int realtags = (1 << LENGTH(tags)) - 1;
 	Monitor *m;
 	Client *c;
@@ -2496,13 +2514,21 @@ updatemonitors(void)
 	buf[0] = '\0';
 	for (m = mons; m; m = m->next) {
 		unsigned int occ = 0;
+		char *p;
 		for (c = m->clients; c; c = c->next)
 			occ |= c->tags;
 		occ &= realtags;
-		snprintf(line, sizeof line, "%d %d %d %d %d %u %u %d %s\n",
+		/* Copy the selected client's title, flattening any embedded
+		 * newlines/tabs so they can't corrupt the record framing. */
+		strncpy(title, m->sel ? m->sel->name : "", sizeof title - 1);
+		title[sizeof title - 1] = '\0';
+		for (p = title; *p; p++)
+			if (*p == '\n' || *p == '\t')
+				*p = ' ';
+		snprintf(line, sizeof line, "%d %d %d %d %d %u %u %d %s %s\n",
 			m->num, m->mx, m->my, m->mw, m->mh,
 			m->tagset[m->seltags] & realtags, occ,
-			m == selmon ? 1 : 0, m->ltsymbol);
+			m == selmon ? 1 : 0, m->ltsymbol, title);
 		if (off + strlen(line) < sizeof buf) {
 			strcpy(buf + off, line);
 			off += strlen(line);
