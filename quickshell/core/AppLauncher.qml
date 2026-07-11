@@ -129,7 +129,12 @@ Scope {
             width: 600
             height: Math.min(520, 2 * Theme.popupMargin + Theme.buttonHeight
                              + Theme.listSpacing + list.contentHeight)
-            anchors.centerIn: parent
+            // Pinned near the top and centered horizontally so the search bar
+            // stays put; the results list grows/shrinks downward as you type
+            // rather than the whole box re-centering vertically.
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            anchors.topMargin: Math.round(parent.height * 0.18)
             color: Theme.bg
             border.color: Theme.border
             border.width: 1
