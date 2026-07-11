@@ -1,0 +1,54 @@
+From: tighter-tag-padding patch
+Subject: [PATCH] Tighten tag-cell padding to two-thirds of lrpad
+
+Applies on top of the active-tag-underline patch. Introduces a separate
+`tagpad` variable (and matching `TAGW` macro) initialized to
+(lrpad * 2) / 3. The tag drawing loop uses `tagpad` instead of `lrpad`
+for both cell width and the text x-offset, so the numbers sit closer
+together without changing layout-symbol or window-title padding. Because
+`tagpad` is derived from `lrpad` (which is the font height), it scales
+with the font.
+
+---
+ dwm.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/dwm.c b/dwm.c
+--- a/dwm.c
++++ b/dwm.c
+@@ -65,6 +65,7 @@
+ #define SPTAG(i) 				((1 << LENGTH(tags)) << (i))
+ #define SPTAGMASK   			(((1 << LENGTH(scratchpads))-1) << LENGTH(tags))
+ #define TEXTW(X)                (drw_fontset_getwidth(drw, (X)) + lrpad)
++#define TAGW(X)                 (drw_fontset_getwidth(drw, (X)) + tagpad)
+ 
+ #define SYSTEM_TRAY_REQUEST_DOCK    0
+ /* XEMBED messages */
+@@ -315,6 +316,7 @@ static int screen;
+ static int sw, sh;           /* X display screen geometry width, height */
+ static int bh;               /* bar height */
+ static int lrpad;            /* sum of left and right padding for text */
++static int tagpad;           /* sum of left and right padding for tag cells */
+ static int (*xerrorxlib)(Display *, XErrorEvent *);
+ static unsigned int numlockmask = 0;
+ static void (*handler[LASTEvent]) (XEvent *) = {
+@@ -1068,9 +1070,9 @@ drawbar(Monitor *m)
+ 	}
+ 	x = 0;
+ 	for (i = 0; i < LENGTH(tags); i++) {
+-		w = TEXTW(tags[i]);
++		w = TAGW(tags[i]);
+ 		drw_setscheme(drw, scheme[m->tagset[m->seltags] & 1 << i ? SchemeSel : SchemeNorm]);
+-		drw_text(drw, x, 0, w, bh, lrpad / 2, tags[i], urg & 1 << i);
++		drw_text(drw, x, 0, w, bh, tagpad / 2, tags[i], urg & 1 << i);
+ 		if (m->tagset[m->seltags] & 1 << i)
+ 			drw_rect(drw, x, bh - 2, w, 2, 1, 0);
+ 		if (occ & 1 << i) {
+@@ -2139,6 +2141,7 @@ setup(void)
+ 	if (!drw_fontset_create(drw, fonts, LENGTH(fonts)))
+ 		die("no fonts could be loaded.");
+ 	lrpad = drw->fonts->h;
++	tagpad = (lrpad * 2) / 3;
+ 	bh = drw->fonts->h + 2;
+ 	updategeom();
+ 	/* init atoms */

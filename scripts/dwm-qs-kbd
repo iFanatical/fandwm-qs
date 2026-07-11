@@ -1,0 +1,13 @@
+#!/bin/sh
+# dwm-qs-kbd — active keyboard layout (mirrors language.sh). Prefers xkb-switch
+# / xkblayout-state (true active group) when available; else setxkbmap -query.
+if command -v xkb-switch >/dev/null 2>&1; then
+	kbd=$(xkb-switch -p 2>/dev/null)
+elif command -v xkblayout-state >/dev/null 2>&1; then
+	kbd=$(xkblayout-state print "%s" 2>/dev/null)
+else
+	kbd=$(setxkbmap -query 2>/dev/null | awk '/^layout/ {print $2}')
+fi
+printf 'icon=󰌌\n'
+printf 'text=%s\n' "${kbd:-??}"
+printf 'color=#f7768e\n'

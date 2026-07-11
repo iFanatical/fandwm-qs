@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=dwm-qs
+Comment=dynamic window manager (QuickShell bar)
+Exec=dwm-qs
+Icon=dwm
+Terminal=false
+Categories=WindowManager;

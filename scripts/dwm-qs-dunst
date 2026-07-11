@@ -1,0 +1,16 @@
+#!/bin/sh
+# dwm-qs-dunst — dunst do-not-disturb status/toggle for the QuickShell widget.
+# Mirrors dunst.sh: paused == DND on. Emits key=value the panel parses.
+#
+#   dwm-qs-dunst status     print paused/count
+#   dwm-qs-dunst toggle     flip paused, then print new state
+set -eu
+
+case "${1:-status}" in
+toggle) dunstctl set-paused toggle >/dev/null 2>&1 || true ;;
+esac
+
+paused=$(dunstctl is-paused 2>/dev/null || echo false)
+count=$(dunstctl count waiting 2>/dev/null || echo 0)
+printf 'paused=%s\n' "$paused"
+printf 'count=%s\n' "$count"

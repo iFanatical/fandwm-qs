@@ -1,0 +1,21 @@
+#!/bin/sh
+# dwm-qs-battery — battery level/icon (mirrors battery.sh). Prints nothing on a
+# machine with no battery, so the widget hides itself.
+BAT=$(ls -d /sys/class/power_supply/BAT* 2>/dev/null | head -1)
+[ -n "$BAT" ] || exit 0
+cap=$(cat "$BAT/capacity" 2>/dev/null)
+st=$(cat "$BAT/status" 2>/dev/null)
+[ -n "$cap" ] || exit 0
+
+if [ "$st" = "Charging" ]; then icon="󰂅"; color="#9ece6a"
+elif [ "$cap" -le 5 ];  then icon="󰁺"; color="#f7768e"
+elif [ "$cap" -le 20 ]; then icon="󰁻"; color="#f7768e"
+elif [ "$cap" -le 40 ]; then icon="󰁽"; color="#e0af68"
+elif [ "$cap" -le 60 ]; then icon="󰁿"; color="#e0af68"
+elif [ "$cap" -le 80 ]; then icon="󰂁"; color="#0db9d7"
+else                         icon="󰁹"; color="#0db9d7"
+fi
+
+printf 'icon=%s\n' "$icon"
+printf 'text=%s%%\n' "$cap"
+printf 'color=%s\n' "$color"

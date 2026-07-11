@@ -1,0 +1,5 @@
+#!/bin/sh
+# dwm-qs-mem — memory usage for the QuickShell panel (mirrors mem-usage.sh).
+mem=$(free -m | awk '/^Mem/ {printf "%.1fG / %.1fG", $3/1024, $2/1024}')
+printf 'icon=󰍛\n'
+printf 'text=%s\n' "$mem"

@@ -1,0 +1,25 @@
+From: tag-click-hitbox-fix patch
+Subject: [PATCH] Use TAGW for tag click hit-testing
+
+The tagpad patch switched the tag-drawing loop in drawbar() to use TAGW,
+but left buttonpress() using TEXTW. That meant the visible tag cells got
+narrower while their clickable regions stayed at the old (wider) width,
+so clicks had to land beyond the visible cell to register. This aligns
+the hit-test with what's actually drawn.
+
+---
+ dwm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/dwm.c b/dwm.c
+--- a/dwm.c
++++ b/dwm.c
+@@ -589,7 +589,7 @@ buttonpress(XEvent *e)
+ 	if (ev->window == selmon->barwin) {
+ 		i = x = 0;
+ 		do
+-			x += TEXTW(tags[i]);
++			x += TAGW(tags[i]);
+ 		while (ev->x >= x && ++i < LENGTH(tags));
+ 		if (i < LENGTH(tags)) {
+ 			click = ClkTagBar;

@@ -1,0 +1,9 @@
+singleton Theme 1.0 Theme.qml
+singleton PopupManager 1.0 PopupManager.qml
+singleton DunstService 1.0 DunstService.qml
+BarPill 1.0 BarPill.qml
+ScriptPill 1.0 ScriptPill.qml
+Popup 1.0 Popup.qml
+ShellSurface 1.0 ShellSurface.qml
+ShellButton 1.0 ShellButton.qml
+ValueSlider 1.0 ValueSlider.qml

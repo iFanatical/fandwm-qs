@@ -1,0 +1,141 @@
+#!/bin/sh
+# dwm-qs-state — bridge dwm-qs's EWMH root-window state to the QuickShell panel.
+#
+# dwm-qs publishes _NET_CURRENT_DESKTOP / _NET_NUMBER_OF_DESKTOPS /
+# _NET_DESKTOP_NAMES / _NET_ACTIVE_WINDOW on the root window, and the classic
+# status text via the root WM_NAME. This script reads those with xprop and
+# emits `key=value` blocks (blank-line separated) that DwmState.qml parses.
+#
+#   dwm-qs-state state          print one state block and exit
+#   dwm-qs-state watch          stream a block on every relevant property change
+#   dwm-qs-state switch <N>     switch to workspace N (0-based)
+#
+# Requires: xprop (x11-utils). Workspace switching uses xdotool or wmctrl.
+set -u
+
+print_default_names() {
+	count=${1:-9}
+	i=1
+	sep=
+	while [ "$i" -le "$count" ]; do
+		printf '%s%s' "$sep" "$i"
+		sep='|'
+		i=$((i + 1))
+	done
+}
+
+clean_line() {
+	tr '\r\n' '  ' | sed 's/[[:space:]][[:space:]]*/ /g; s/^ //; s/ $//'
+}
+
+root_property_value() {
+	xprop -root "$1" 2>/dev/null | sed -n 's/^[^=]*= //p'
+}
+
+root_status() {
+	xprop -root WM_NAME 2>/dev/null |
+		sed -n 's/^WM_NAME[^=]*= "\(.*\)"$/\1/p' | clean_line
+}
+
+desktop_names() {
+	names=$(root_property_value _NET_DESKTOP_NAMES | awk '
+		BEGIN { RS = ","; sep = "" }
+		{
+			gsub(/^[[:space:]]*"/, "")
+			gsub(/"[[:space:]]*$/, "")
+			if ($0 != "") { printf "%s%s", sep, $0; sep = "|" }
+		}')
+	if [ -n "$names" ]; then
+		printf '%s' "$names"
+	else
+		print_default_names "$1"
+	fi
+}
+
+active_window_id() {
+	xdotool getactivewindow 2>/dev/null || {
+		root_property_value _NET_ACTIVE_WINDOW |
+			sed -n 's/^window id # //p' |
+			awk '$1 != "0x0" { print $1; exit }'
+	}
+}
+
+window_title() {
+	[ -n "$1" ] || return 1
+	xprop -id "$1" _NET_WM_NAME WM_NAME 2>/dev/null |
+		awk -F'= ' '
+			/^_NET_WM_NAME/ { t=$2; gsub(/^"/,"",t); gsub(/"$/,"",t); print t; found=1; exit }
+			/^WM_NAME/ { t=$2; gsub(/^"/,"",t); gsub(/"$/,"",t); fb=t }
+			END { if (!found && fb != "") print fb }' | clean_line
+}
+
+show_state() {
+	current=$(root_property_value _NET_CURRENT_DESKTOP | awk '{ print $1; exit }')
+	count=$(root_property_value _NET_NUMBER_OF_DESKTOPS | awk '{ print $1; exit }')
+	occupied=$(root_property_value _DWM_OCCUPIED_TAGS | awk '{ print $1; exit }')
+	layout=$(xprop -root _DWM_LAYOUT 2>/dev/null | sed -n 's/^_DWM_LAYOUT[^=]*= "\(.*\)"$/\1/p')
+	current=${current:-0}
+	count=${count:-9}
+	occupied=${occupied:-0}
+	names=$(desktop_names "$count")
+	window_id=$(active_window_id)
+	title=$(window_title "$window_id" || true)
+	title=${title:-Desktop}
+	status=$(root_status)
+
+	printf 'current=%s\n' "$current"
+	printf 'count=%s\n' "$count"
+	printf 'occupied=%s\n' "$occupied"
+	printf 'layout=%s\n' "$layout"
+	printf 'names=%s\n' "$names"
+	printf 'active_window=%s\n' "$window_id"
+	printf 'title=%s\n' "$title"
+	printf 'status=%s\n' "$status"
+
+	# Per-monitor records so each bar shows its own monitor's tags:
+	#   monitor<TAB>num x y w h selMask occMask isSelected layout
+	xprop -root _DWM_MONITORS 2>/dev/null |
+		sed -n 's/^_DWM_MONITORS[^=]*= "\(.*\)"$/\1/p' |
+		sed 's/\\n/\n/g' |
+		while IFS= read -r rec; do
+			[ -n "$rec" ] && printf 'monitor\t%s\n' "$rec"
+		done
+}
+
+watch_state() {
+	show_state
+	printf '\n'
+	xprop -root -spy \
+		_NET_CURRENT_DESKTOP \
+		_NET_NUMBER_OF_DESKTOPS \
+		_NET_DESKTOP_NAMES \
+		_DWM_OCCUPIED_TAGS \
+		_DWM_LAYOUT \
+		_DWM_MONITORS \
+		_NET_ACTIVE_WINDOW \
+		_NET_CLIENT_LIST \
+		WM_NAME 2>/dev/null |
+		while IFS= read -r _event; do
+			show_state
+			printf '\n'
+		done
+}
+
+switch_workspace() {
+	mon=${1:-}
+	tag=${2:-}
+	case "$mon" in '' | *[!0-9]*) printf 'usage: %s switch <monitor> <tag>\n' "$0" >&2; return 2 ;; esac
+	case "$tag" in '' | *[!0-9]*) printf 'usage: %s switch <monitor> <tag>\n' "$0" >&2; return 2 ;; esac
+	# dwm-qs watches this root property and views <tag> on <monitor>.
+	xprop -root -f _DWM_VIEW_REQUEST 8s -set _DWM_VIEW_REQUEST "$mon $tag"
+}
+
+case ${1:-state} in
+state)  show_state ;;
+watch)  watch_state ;;
+switch) switch_workspace "${2:-}" "${3:-}" ;;
+*)
+	printf 'usage: %s [state|watch|switch <monitor> <tag>]\n' "$0" >&2
+	exit 2
+	;;
+esac

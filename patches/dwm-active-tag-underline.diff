@@ -1,0 +1,24 @@
+From: active-tag-underline patch
+Subject: [PATCH] Underline the active tag with a 2px line in the tag's foreground color
+
+Draws a 2px horizontal line along the bottom edge of the active tag in
+the bar. The line uses ColFg of the scheme currently bound when the
+tag glyph is drawn (SchemeSel for the active tag), so the underline
+matches the color of the tag number/id itself.
+
+---
+ dwm.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/dwm.c b/dwm.c
+--- a/dwm.c
++++ b/dwm.c
+@@ -1071,6 +1071,8 @@ drawbar(Monitor *m)
+ 		w = TEXTW(tags[i]);
+ 		drw_setscheme(drw, scheme[m->tagset[m->seltags] & 1 << i ? SchemeSel : SchemeNorm]);
+ 		drw_text(drw, x, 0, w, bh, lrpad / 2, tags[i], urg & 1 << i);
++		if (m->tagset[m->seltags] & 1 << i)
++			drw_rect(drw, x, bh - 2, w, 2, 1, 0);
+ 		if (occ & 1 << i) {
+ 			drw_setscheme(drw, scheme[SchemeBox]);
+ 			drw_rect(drw, x + boxs, boxs, boxw, boxw,
