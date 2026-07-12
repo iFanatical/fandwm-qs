@@ -39,6 +39,9 @@ Scope {
     property var entries: []
     property int selected: 0
 
+    // Number of columns in the results grid (see GridView below).
+    readonly property int columns: 2
+
     // Current search text, mirrored here so refilter() doesn't depend on the
     // window's TextInput still existing (it is destroyed while closed).
     property string searchText: ""
@@ -90,6 +93,16 @@ Scope {
         function hide(): void { root.shown = false; }
     }
 
+    // Re-filter if the application list changes while open, so the prepopulated
+    // list fills in even if desktop entries are still loading on first open.
+    Connections {
+        target: DesktopEntries.applications
+        function onValuesChanged() {
+            if (root.shown)
+                root.refilter();
+        }
+    }
+
     // Fullscreen, WM-managed overlay. dwm focuses it (so typing works) and
     // sizes/positions it fullscreen + borderless via the `launchertitle` hook.
     FloatingWindow {
@@ -97,7 +110,10 @@ Scope {
         title: "fandwm-launcher"
         screen: root.screen
         visible: root.shown
-        color: "#cc1a1b26" // dimmed Tokyo Night backdrop (composited by picom)
+        // No dim: the overlay is fully transparent, so only the launcher box is
+        // visible. It still covers the screen and captures clicks, so clicking
+        // anywhere outside the box dismisses the launcher.
+        color: "transparent"
 
         // Size hints; dwm forces the real geometry to the full monitor, but a
         // sane starting size avoids a first-frame flash.
@@ -126,15 +142,15 @@ Scope {
 
         Rectangle {
             id: box
-            width: 600
+            width: 820
             height: Math.min(520, 2 * Theme.popupMargin + Theme.buttonHeight
-                             + Theme.listSpacing + list.contentHeight)
+                             + Theme.listSpacing + grid.contentHeight)
             // Pinned near the top and centered horizontally so the search bar
             // stays put; the results list grows/shrinks downward as you type
             // rather than the whole box re-centering vertically.
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
-            anchors.topMargin: Math.round(parent.height * 0.18)
+            anchors.topMargin: Math.round(parent.height * 0.28)
             color: Theme.bg
             border.color: Theme.border
             border.width: 1
@@ -199,10 +215,18 @@ Scope {
                                     e.accepted = true;
                                 } else if (e.key === Qt.Key_Down
                                            || (e.key === Qt.Key_N && (e.modifiers & Qt.ControlModifier))) {
-                                    root.move(1);
+                                    root.move(root.columns);
                                     e.accepted = true;
                                 } else if (e.key === Qt.Key_Up
                                            || (e.key === Qt.Key_P && (e.modifiers & Qt.ControlModifier))) {
+                                    root.move(-root.columns);
+                                    e.accepted = true;
+                                } else if (e.key === Qt.Key_Right
+                                           || (e.key === Qt.Key_F && (e.modifiers & Qt.ControlModifier))) {
+                                    root.move(1);
+                                    e.accepted = true;
+                                } else if (e.key === Qt.Key_Left
+                                           || (e.key === Qt.Key_B && (e.modifiers & Qt.ControlModifier))) {
                                     root.move(-1);
                                     e.accepted = true;
                                 }
@@ -222,8 +246,8 @@ Scope {
                 }
             }
 
-            ListView {
-                id: list
+            GridView {
+                id: grid
                 anchors {
                     top: header.bottom
                     left: parent.left
@@ -234,64 +258,73 @@ Scope {
                 }
                 clip: true
                 model: root.entries
-                spacing: Theme.compactSpacing
+                // Two equal-width columns filling the width, left-to-right, so a
+                // row reads <icon> <name> <icon> <name>.
+                cellWidth: Math.floor(width / root.columns)
+                cellHeight: 48
                 boundsBehavior: Flickable.StopAtBounds
                 currentIndex: root.selected
-                onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
+                onCurrentIndexChanged: positionViewAtIndex(currentIndex, GridView.Contain)
 
-                delegate: Rectangle {
+                delegate: Item {
                     required property var modelData
                     required property int index
-                    width: ListView.view.width
-                    height: 40
-                    radius: Theme.smallRadius
-                    color: index === root.selected ? Theme.surface : Theme.transparent
+                    width: grid.cellWidth
+                    height: grid.cellHeight
 
-                    MouseArea {
+                    // Inset from the cell edges to create the gap between cells.
+                    Rectangle {
                         anchors.fill: parent
-                        hoverEnabled: true
-                        onEntered: root.selected = index
-                        onClicked: root.launch()
-                    }
+                        anchors.margins: Theme.compactSpacing / 2
+                        radius: Theme.smallRadius
+                        color: index === root.selected ? Theme.surface : Theme.transparent
 
-                    Row {
-                        anchors.fill: parent
-                        anchors.leftMargin: Theme.rowSpacing
-                        anchors.rightMargin: Theme.rowSpacing
-                        spacing: Theme.rowSpacing
-
-                        Image {
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: Theme.iconSize + 6
-                            height: Theme.iconSize + 6
-                            sourceSize.width: width
-                            sourceSize.height: height
-                            fillMode: Image.PreserveAspectFit
-                            source: Quickshell.iconPath(modelData.icon, "application-x-executable")
+                        MouseArea {
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onEntered: root.selected = index
+                            onClicked: root.launch()
                         }
 
-                        Column {
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: parent.width - Theme.iconSize - 6 - Theme.rowSpacing
-                            spacing: 0
+                        Row {
+                            anchors.fill: parent
+                            anchors.leftMargin: Theme.rowSpacing
+                            anchors.rightMargin: Theme.rowSpacing
+                            spacing: Theme.rowSpacing
 
-                            Text {
-                                width: parent.width
-                                elide: Text.ElideRight
-                                text: modelData.name || ""
-                                color: index === root.selected ? Theme.cyan : Theme.text
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.bodyFontSize
+                            Image {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: Theme.iconSize + 6
+                                height: Theme.iconSize + 6
+                                sourceSize.width: width
+                                sourceSize.height: height
+                                fillMode: Image.PreserveAspectFit
+                                source: Quickshell.iconPath(modelData.icon, "application-x-executable")
                             }
 
-                            Text {
-                                width: parent.width
-                                elide: Text.ElideRight
-                                visible: text.length > 0
-                                text: modelData.genericName || modelData.comment || ""
-                                color: Theme.textMuted
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.smallFontSize
+                            Column {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: parent.width - Theme.iconSize - 6 - Theme.rowSpacing
+                                spacing: 0
+
+                                Text {
+                                    width: parent.width
+                                    elide: Text.ElideRight
+                                    text: modelData.name || ""
+                                    color: index === root.selected ? Theme.cyan : Theme.text
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.bodyFontSize
+                                }
+
+                                Text {
+                                    width: parent.width
+                                    elide: Text.ElideRight
+                                    visible: text.length > 0
+                                    text: modelData.genericName || modelData.comment || ""
+                                    color: Theme.textMuted
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.smallFontSize
+                                }
                             }
                         }
                     }
