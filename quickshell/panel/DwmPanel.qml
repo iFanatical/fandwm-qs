@@ -41,6 +41,30 @@ PanelWindow {
         return (ms && ms.length > 0) ? ms[0] : null;
     }
 
+    // Max characters shown for the window title before shortening.
+    property int maxTitleLength: 45
+
+    // Shorten an over-long title while keeping the trailing app-name segment
+    // (everything after the last " - "). Only the leading part is truncated,
+    // so "… - Mozilla Firefox" stays readable instead of losing the app name.
+    // Falls back to a plain right-truncation when there's no " - " or the
+    // suffix alone already exceeds the budget.
+    function shortenTitle(t) {
+        var max = root.maxTitleLength;
+        if (!t || t.length <= max)
+            return t || "";
+        var ell = "…";
+        var sep = " - ";
+        var idx = t.lastIndexOf(sep);
+        if (idx > 0) {
+            var suffix = t.slice(idx);              // " - Mozilla Firefox"
+            var budget = max - suffix.length - ell.length;
+            if (budget >= 1)
+                return t.slice(0, budget).replace(/\s+$/, "") + ell + suffix;
+        }
+        return t.slice(0, max - ell.length).replace(/\s+$/, "") + ell;
+    }
+
     screen: modelData
     implicitHeight: Theme.panelHeight
     color: Theme.bg
@@ -94,12 +118,13 @@ PanelWindow {
         Text {
             // Nerd Font window glyph shown before the title. Drop your glyph
             // between the quotes (or use a \uXXXX escape). Empty = no icon.
-            readonly property string windowIcon: ""
+            readonly property string windowIconLeft: "["
+            readonly property string windowIconRight: "]"
 
             Layout.fillWidth: true
             text: (root.mon && root.mon.title && root.mon.title.length > 0)
-                  ? (" " + windowIcon + " " + root.mon.title) : ""
-            color: Theme.textStrong
+                  ? (" " + windowIconLeft + " " + root.shortenTitle(root.mon.title) + " " + windowIconRight) : ""
+            color: Theme.magenta
             font.family: Theme.fontFamily
             font.pixelSize: Theme.panelFontSize
             elide: Text.ElideRight
