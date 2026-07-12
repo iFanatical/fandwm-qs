@@ -6,6 +6,9 @@ config.h
 dwm-qs
 dwm
 *.o
+/dwm-qs-state
+/shell/dwm-qs-shell
+/shell/moc_*.cpp
 
 # Patch cruft
 *.orig
