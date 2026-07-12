@@ -286,7 +286,7 @@ static pid_t winpid(Window w);
 /* variables */
 static const char autostartblocksh[] = "autostart_blocking.sh";
 static const char autostartsh[] = "autostart.sh";
-static const char dwmdir[] = "dwm";
+static const char dwmdir[] = "dwm-qs";
 static const char localshare[] = ".local/share";
 static const char broken[] = "broken";
 static char stext[1024];

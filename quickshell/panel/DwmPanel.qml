@@ -86,12 +86,19 @@ PanelWindow {
             verticalAlignment: Text.AlignVCenter
         }
 
-        // Focused window title for this monitor. Fills the gap between the
-        // left group and the status widgets; elides so a long title never
-        // pushes the right-hand widgets off screen.
+        // Focused window title for this monitor, with a leading window icon.
+        // Fills the gap between the left group and the status widgets; elides
+        // so a long title never pushes the right-hand widgets off screen. The
+        // icon is prepended into the same Text so it stays pinned at the front
+        // while the title's tail elides, and both vanish when there's no window.
         Text {
+            // Nerd Font window glyph shown before the title. Drop your glyph
+            // between the quotes (or use a \uXXXX escape). Empty = no icon.
+            readonly property string windowIcon: ""
+
             Layout.fillWidth: true
-            text: root.mon ? (root.mon.title || "") : ""
+            text: (root.mon && root.mon.title && root.mon.title.length > 0)
+                  ? (" " + windowIcon + " " + root.mon.title) : ""
             color: Theme.textStrong
             font.family: Theme.fontFamily
             font.pixelSize: Theme.panelFontSize
