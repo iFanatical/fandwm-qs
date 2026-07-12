@@ -4,6 +4,8 @@ import qs.state
 
 BarPill {
     id: root
+    // shared singleton — one watch process for all bars
+    readonly property var netState: NetworkState
     readonly property var net: netState
     readonly property bool nm: netState.backend === "nm"
 
@@ -25,8 +27,6 @@ BarPill {
 
     onClicked: popup.visible = !popup.visible
     onRightClicked: if (nm) netState.wifiScan()
-
-    NetworkState { id: netState }
 
     NetworkPopup {
         id: popup

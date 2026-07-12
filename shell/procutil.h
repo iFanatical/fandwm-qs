@@ -1,0 +1,53 @@
+/* QProcess helpers mirroring the Quickshell.Io patterns:
+ *   CollectorProcess — Process + StdioCollector (run, buffer stdout, emit)
+ *   BlockWatchProcess — Process + SplitParser (long-lived, "\n\n" blocks)  */
+#ifndef DWMQS_PROCUTIL_H
+#define DWMQS_PROCUTIL_H
+
+#include <QObject>
+#include <QProcess>
+#include <QStringList>
+
+/* One-shot command; collect stdout; `finished(text)` when it exits. Starting
+ * while already running is a no-op (QML `running = true` semantics). */
+class CollectorProcess : public QObject {
+    Q_OBJECT
+public:
+    explicit CollectorProcess(QObject *parent = nullptr);
+
+    void setCommand(const QStringList &cmd) { m_cmd = cmd; }
+    void start();
+    void start(const QStringList &cmd);
+
+signals:
+    void finished(const QString &stdoutText);
+
+private:
+    QProcess m_proc;
+    QStringList m_cmd;
+};
+
+/* Long-running watcher; stdout split on a marker (default "\n\n"), each chunk
+ * emitted via block(). */
+class BlockWatchProcess : public QObject {
+    Q_OBJECT
+public:
+    explicit BlockWatchProcess(const QStringList &cmd,
+                               const QByteArray &marker = "\n\n",
+                               QObject *parent = nullptr);
+
+    void start();
+
+signals:
+    void block(const QString &data);
+
+private:
+    void onReadyRead();
+
+    QProcess m_proc;
+    QStringList m_cmd;
+    QByteArray m_marker;
+    QByteArray m_buf;
+};
+
+#endif

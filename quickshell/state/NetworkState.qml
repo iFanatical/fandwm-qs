@@ -1,3 +1,5 @@
+pragma Singleton
+
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -5,7 +7,8 @@ import Quickshell.Io
 // Network state via the backend-adaptive dwm-qs-net bridge.
 //   backend == "nm" -> NetworkManager: Wi-Fi list/connect/scan/radio.
 //   backend == "ip" -> custom bridge/VLAN desktop: link status + re-apply.
-Scope {
+// Singleton: exactly one watch process, no matter how many bars use it.
+Singleton {
     id: root
 
     property string backend: "ip"

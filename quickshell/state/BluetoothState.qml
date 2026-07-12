@@ -1,9 +1,12 @@
+pragma Singleton
+
 import Quickshell
 import Quickshell.Io
 
 // Bluetooth state via the dwm-qs-bt bridge (bluetoothctl). Streams status
 // blocks; exposes powered/discovering/devices and action methods.
-Scope {
+// Singleton: exactly one watch process, no matter how many bars use it.
+Singleton {
     id: root
     property bool powered: false
     property bool discovering: false

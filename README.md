@@ -8,9 +8,13 @@ make && sudo make install
   
 Requirements:  
 sxhkd (hotkeys independent of dwm)  
-quickshell (bar)  
+Qt 6 base + libpulse (bar — `dwm-qs-shell`, built by make)  
   
-I have my quickshell directory here (../fandwm-qs/quickshell) symlinked to ~/.config/quickshell.  
-If you want a similar setup, so everything lives within the git repo, you can run the following command:  
+The bar is a hand-rolled C++/Qt panel (`shell/`); see QUICKSHELL.md for the
+full docs. QuickShell is no longer required — the original QML config it was
+ported from is kept in `quickshell/` for reference.  
+  
+Launch from `~/.xinitrc`:  
 
-ln -s /path/to/fandwm-qs/quickshell $HOME/.config/quickshell  
+dwm-qs-shell --no-duplicate &  
+exec dwm-qs  
