@@ -3,13 +3,12 @@ import Quickshell
 import Quickshell.Io
 import qs.core
 
-// Centered, IPC-triggered application launcher. Reads .desktop entries via
-// DesktopEntries (so it handles Exec field codes / Terminal=true correctly)
-// and themes itself from Theme.qml, matching the dwm-qs panel.
-//
-// Trigger from dwm with:
-//   quickshell ipc call launcher toggle
-// (also: show / hide).
+// Centered, IPC-triggered launcher with two modes sharing one UI:
+//   * "apps" — .desktop entries via DesktopEntries (handles Exec field codes /
+//     Terminal=true correctly). Trigger: quickshell ipc call launcher toggle
+//   * "run"  — executables found on $PATH, run directly (dmenu_run/rofi -show
+//     run style). Trigger: quickshell ipc call runner toggle
+// Both targets also support show / hide. It themes itself from Theme.qml.
 //
 // Architecture (X11/dwm):
 //   The launcher is a single fullscreen `FloatingWindow`. Unlike PanelWindow
@@ -35,7 +34,15 @@ Scope {
     // Single source of truth for open/closed.
     property bool shown: false
 
-    // Filtered, name-sorted list of visible desktop entries.
+    // Active mode: "apps" (.desktop entries) or "run" ($PATH executables).
+    property string mode: "apps"
+
+    // Cached list of $PATH executable names, populated by binScan for run mode.
+    property var binaries: []
+
+    // Normalized results. Each item: { name, sub, icon, app?, cmd? } where
+    // `icon` is an icon name (resolved via Quickshell.iconPath), `app` is a
+    // DesktopEntry (apps mode) and `cmd` is a binary name (run mode).
     property var entries: []
     property int selected: 0
 
@@ -48,28 +55,43 @@ Scope {
 
     function refilter() {
         var q = searchText.toLowerCase().trim();
-        var all = DesktopEntries.applications.values;
         var out = [];
-        for (var i = 0; i < all.length; i++) {
-            var e = all[i];
-            if (e.noDisplay)
-                continue;
-            if (q === ""
-                    || (e.name && e.name.toLowerCase().indexOf(q) >= 0)
-                    || (e.genericName && e.genericName.toLowerCase().indexOf(q) >= 0)
-                    || (e.comment && e.comment.toLowerCase().indexOf(q) >= 0))
-                out.push(e);
+        if (mode === "run") {
+            var bins = binaries;
+            for (var i = 0; i < bins.length; i++) {
+                var b = bins[i];
+                if (q === "" || b.toLowerCase().indexOf(q) >= 0)
+                    out.push({ name: b, sub: "", icon: b, cmd: b });
+            }
+            // bins arrive pre-sorted (sort -u), so no re-sort needed.
+        } else {
+            var all = DesktopEntries.applications.values;
+            for (var j = 0; j < all.length; j++) {
+                var e = all[j];
+                if (e.noDisplay)
+                    continue;
+                if (q === ""
+                        || (e.name && e.name.toLowerCase().indexOf(q) >= 0)
+                        || (e.genericName && e.genericName.toLowerCase().indexOf(q) >= 0)
+                        || (e.comment && e.comment.toLowerCase().indexOf(q) >= 0))
+                    out.push({ name: e.name || "", sub: e.genericName || e.comment || "", icon: e.icon, app: e });
+            }
+            out.sort(function (a, b) {
+                return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+            });
         }
-        out.sort(function (a, b) {
-            return (a.name || "").toLowerCase().localeCompare((b.name || "").toLowerCase());
-        });
         entries = out;
         selected = 0;
     }
 
     function launch() {
-        if (selected >= 0 && selected < entries.length)
-            entries[selected].execute();
+        if (selected >= 0 && selected < entries.length) {
+            var it = entries[selected];
+            if (it.app)
+                it.app.execute();
+            else if (it.cmd)
+                Quickshell.execDetached([it.cmd]);
+        }
         shown = false;
     }
 
@@ -79,26 +101,59 @@ Scope {
         selected = (selected + delta + entries.length) % entries.length;
     }
 
-    onShownChanged: {
-        if (shown) {
-            searchText = "";
-            refilter();
-        }
+    // Open in the given mode ("apps" | "run"), resetting the query.
+    function openMode(m) {
+        mode = m;
+        searchText = "";
+        if (m === "run")
+            binScan.running = true; // (re)scan $PATH; refilter again when it ends
+        refilter();
+        shown = true;
+    }
+
+    // Toggle: close if already open in this mode, otherwise (re)open in it.
+    function toggleMode(m) {
+        if (shown && mode === m)
+            shown = false;
+        else
+            openMode(m);
     }
 
     IpcHandler {
         target: "launcher"
-        function toggle(): void { root.shown = !root.shown; }
-        function show(): void { root.shown = true; }
+        function toggle(): void { root.toggleMode("apps"); }
+        function show(): void { root.openMode("apps"); }
         function hide(): void { root.shown = false; }
     }
 
-    // Re-filter if the application list changes while open, so the prepopulated
-    // list fills in even if desktop entries are still loading on first open.
+    IpcHandler {
+        target: "runner"
+        function toggle(): void { root.toggleMode("run"); }
+        function show(): void { root.openMode("run"); }
+        function hide(): void { root.shown = false; }
+    }
+
+    // Enumerate executables on $PATH for run mode. StdioCollector buffers the
+    // full output (waitForEnd defaults true), so `text` is ready on finish.
+    Process {
+        id: binScan
+        command: ["sh", "-c",
+            "for d in $(echo \"$PATH\" | tr ':' ' '); do [ -d \"$d\" ] || continue; for f in \"$d\"/*; do [ -x \"$f\" ] && [ ! -d \"$f\" ] && printf '%s\\n' \"${f##*/}\"; done; done | sort -u"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.binaries = text.split("\n").filter(function (s) { return s.length > 0; });
+                if (root.shown && root.mode === "run")
+                    root.refilter();
+            }
+        }
+    }
+
+    // Re-filter if the application list changes while the apps launcher is open,
+    // so the prepopulated list fills in even if entries are still loading.
     Connections {
         target: DesktopEntries.applications
         function onValuesChanged() {
-            if (root.shown)
+            if (root.shown && root.mode === "apps")
                 root.refilter();
         }
     }
@@ -236,7 +291,7 @@ Scope {
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
                                 visible: search.text.length === 0
-                                text: "Search applications…"
+                                text: root.mode === "run" ? "Run a command…" : "Search applications…"
                                 color: Theme.textMuted
                                 font.family: Theme.fontFamily
                                 font.pixelSize: Theme.bodyFontSize
@@ -320,7 +375,7 @@ Scope {
                                     width: parent.width
                                     elide: Text.ElideRight
                                     visible: text.length > 0
-                                    text: modelData.genericName || modelData.comment || ""
+                                    text: modelData.sub || ""
                                     color: Theme.textMuted
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.smallFontSize
