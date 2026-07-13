@@ -41,11 +41,9 @@ AppLauncher::AppLauncher(QObject *parent) : QObject(parent)
 
 QScreen *AppLauncher::pickScreen() const
 {
-    static const QStringList primaryScreens = {QStringLiteral("eDP-1"),
-                                               QStringLiteral("DisplayPort-1")};
     const QList<QScreen *> screens = QGuiApplication::screens();
     for (QScreen *s : screens)
-        if (primaryScreens.contains(s->name()))
+        if (Theme::primaryScreens.contains(s->name()))
             return s;
     return screens.isEmpty() ? nullptr : screens.first();
 }

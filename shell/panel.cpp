@@ -1,6 +1,7 @@
 #include "panel.h"
 
 #include <QEnterEvent>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QMouseEvent>
 #include <QPainter>
@@ -129,8 +130,16 @@ Panel::Panel(DwmState *state, QScreen *screen)
     row->addWidget(new ScriptPill({"dwm-qs-battery"}, 15000, this), 0,
                    Qt::AlignVCenter);
     row->addWidget(new BluetoothWidget(this), 0, Qt::AlignVCenter);
-    row->addWidget(new TrayArea(this), 0, Qt::AlignVCenter);
+    auto *tray = new TrayArea(this);
+    row->addWidget(tray, 0, Qt::AlignVCenter);
     row->addWidget(new ClockWidget(this), 0, Qt::AlignVCenter);
+
+    /* Tray shows on this screen only if it is the tray host; re-evaluated on
+     * monitor hot-plug (DwmPanel.qml showTray). */
+    auto updateTrayHost = [this, tray]() { tray->setHostsTray(hostsTray()); };
+    updateTrayHost();
+    connect(qApp, &QGuiApplication::screenAdded, tray, updateTrayHost);
+    connect(qApp, &QGuiApplication::screenRemoved, tray, updateTrayHost);
 
     connect(m_state, &DwmState::changed, this, &Panel::syncFromState);
     if (screen) {
@@ -145,6 +154,24 @@ Panel::Panel(DwmState *state, QScreen *screen)
      * dwm-qs leaves it unmanaged. */
     winId();
     X11Util::setDock(winId());
+}
+
+/* Tray shows on this screen if its name is listed in Theme::primaryScreens;
+ * if none of the listed names are connected, fall back to the first screen.
+ * Lets one list serve multiple machines (laptop vs desktop). */
+bool Panel::hostsTray() const
+{
+    if (!m_screen)
+        return false;
+    for (const QString &n : Theme::primaryScreens)
+        if (m_screen->name() == n)
+            return true;
+    const QList<QScreen *> screens = QGuiApplication::screens();
+    for (const QString &n : Theme::primaryScreens)
+        for (QScreen *s : screens)
+            if (s->name() == n)
+                return false; /* a listed output exists elsewhere -> not us */
+    return !screens.isEmpty() && m_screen->name() == screens.first()->name();
 }
 
 void Panel::applyGeometry()

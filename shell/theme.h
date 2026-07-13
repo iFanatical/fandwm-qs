@@ -7,6 +7,7 @@
 #include <QFont>
 #include <QPainter>
 #include <QRectF>
+#include <QStringList>
 
 namespace Theme {
 
@@ -50,6 +51,12 @@ inline const QColor tagOccupied ("#dddddd");
 inline const QColor tagEmpty    ("#565f89");
 
 inline const char *const fontFamily = "JetBrainsMono Nerd Font Propo";
+
+/* Output names that may host the tray and the launcher (one list serves
+ * multiple machines, laptop vs desktop). If none of these outputs are
+ * connected, the first screen is used. */
+inline const QStringList primaryScreens{QStringLiteral("eDP-1"),
+                                        QStringLiteral("DisplayPort-1")};
 
 inline constexpr int panelHeight         = 28;
 inline constexpr int panelPadding        = 8;

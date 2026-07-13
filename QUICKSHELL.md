@@ -120,7 +120,8 @@ DISPLAY=:20 ./dwm-qs-state switch 0 3   # -> _NET_CURRENT_DESKTOP becomes 3
 ## Panel widgets
 
 The panel's right side hosts (in order) Dunst, Network, memory, VPN, Volume,
-battery, Bluetooth, the system tray, and the clock. Each is a pill
+battery, Bluetooth, the system tray (primary monitor only — see
+`primaryScreens` in `shell/theme.h`), and the clock. Each is a pill
 (`shell/widgets.cpp` `BarPill`) that opens a themed popup (`shell/popup.cpp`,
 Escape to close).
 

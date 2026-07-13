@@ -54,6 +54,7 @@ protected:
 
 private:
     const DwmState::Monitor *mon() const;
+    bool hostsTray() const;
     void applyGeometry();
     void syncFromState();
 

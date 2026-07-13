@@ -116,16 +116,20 @@ private:
     Qt::MouseButton m_pressed = Qt::NoButton;
 };
 
-/* Row of tray icons; hidden when there are none. */
+/* Row of tray icons; hidden when there are none or when this panel's screen
+ * is not the tray host (DwmPanel.qml showTray). */
 class TrayArea : public QWidget {
     Q_OBJECT
 public:
     explicit TrayArea(QWidget *parent = nullptr);
 
+    void setHostsTray(bool hosts);
+
 private:
     void rebuild();
 
     class QHBoxLayout *m_layout;
+    bool m_hostsTray = true;
 };
 
 #endif

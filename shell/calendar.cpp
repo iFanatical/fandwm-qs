@@ -27,9 +27,9 @@ ClockWidget::ClockWidget(QWidget *parent) : BarPill(parent)
 
 void ClockWidget::tick()
 {
-    /* Qt.formatDateTime format — day/month names in English (C locale). */
+    /* Day/month names in English (C locale); 12-hour clock with AM/PM. */
     setLabel(QDateTime::currentDateTime().toString(
-        QStringLiteral("ddd, MMM dd HH:mm:ss")));
+        QStringLiteral("ddd, MMM dd h:mm:ss AP")));
     if (m_popup->isVisible())
         m_popup->updateToday();
 }

@@ -455,6 +455,14 @@ TrayArea::TrayArea(QWidget *parent) : QWidget(parent)
     rebuild();
 }
 
+void TrayArea::setHostsTray(bool hosts)
+{
+    if (m_hostsTray == hosts)
+        return;
+    m_hostsTray = hosts;
+    rebuild();
+}
+
 void TrayArea::rebuild()
 {
     while (QLayoutItem *it = m_layout->takeAt(0)) {
@@ -468,5 +476,5 @@ void TrayArea::rebuild()
         m_layout->addWidget(w, 0, Qt::AlignVCenter);
         w->show();
     }
-    setVisible(!items.isEmpty());
+    setVisible(m_hostsTray && !items.isEmpty());
 }
