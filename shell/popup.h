@@ -75,6 +75,9 @@ namespace PopupManager {
  * previous. */
 void opened(ShellPopup *p);
 void closed(ShellPopup *p);
+/* Close whatever popup is open (and release its keyboard grab) — used when
+ * the launcher opens so a lingering grab can't swallow its keystrokes. */
+void closeCurrent();
 } /* namespace PopupManager */
 
 #endif

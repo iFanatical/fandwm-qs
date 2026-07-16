@@ -29,6 +29,17 @@ void closed(ShellPopup *p)
         g_current = nullptr;
 }
 
+void closeCurrent()
+{
+    if (g_current && g_current->isVisible())
+        g_current->closePopup();
+    /* Belt and braces: a submenu (not tracked as top-level) could still hold
+     * the grab if its parent chain got confused. */
+    for (int i = g_grabStack.size() - 1; i >= 0; i--)
+        if (g_grabStack[i] && g_grabStack[i]->isVisible())
+            g_grabStack[i]->closePopup();
+}
+
 } /* namespace PopupManager */
 
 ShellPopup::ShellPopup(QWidget *anchor, int popupWidth)

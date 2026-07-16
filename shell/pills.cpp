@@ -122,33 +122,36 @@ void DunstWidget::sync()
     setActive(d->paused);
 }
 
-/* --------------------------------------------------------------- VpnWidget */
+/* ---------------------------------------------------------------- VpnState */
 
-VpnWidget::VpnWidget(QWidget *parent) : BarPill(parent)
+VpnState *VpnState::instance()
 {
-    setLabel(QStringLiteral("VPN"));
+    static VpnState *s = new VpnState();
+    return s;
+}
 
+VpnState::VpnState(QObject *parent) : QObject(parent)
+{
     m_statusProc.setCommand({"dwm-qs-vpn", "status"});
     m_toggleProc.setCommand({"dwm-qs-vpn", "toggle"});
     connect(&m_statusProc, &CollectorProcess::finished, this,
-            &VpnWidget::parse);
+            &VpnState::parse);
     connect(&m_toggleProc, &CollectorProcess::finished, this,
-            &VpnWidget::parse);
-
-    connect(this, &BarPill::clicked, &m_toggleProc,
-            [this]() { m_toggleProc.start(); });
-    connect(this, &BarPill::rightClicked, &m_statusProc,
-            [this]() { m_statusProc.start(); });
-
-    auto *timer = new QTimer(this);
-    connect(timer, &QTimer::timeout, &m_statusProc,
-            [this]() { m_statusProc.start(); });
-    timer->start(5000);
-    m_statusProc.start(); /* triggeredOnStart */
-    sync();
+            &VpnState::parse);
+    refresh(); /* once at startup; no interval polling */
 }
 
-void VpnWidget::parse(const QString &text)
+void VpnState::refresh()
+{
+    m_statusProc.start();
+}
+
+void VpnState::toggle()
+{
+    m_toggleProc.start();
+}
+
+void VpnState::parse(const QString &text)
 {
     const QStringList lines = text.trimmed().split('\n');
     for (const QString &l : lines) {
@@ -157,16 +160,31 @@ void VpnWidget::parse(const QString &text)
             continue;
         const QString k = l.left(i), v = l.mid(i + 1);
         if (k == QLatin1String("state"))
-            m_up = (v == QLatin1String("up"));
+            up = (v == QLatin1String("up"));
         else if (k == QLatin1String("ip"))
-            m_ip = v;
+            ip = v;
     }
+    emit changed();
+}
+
+/* --------------------------------------------------------------- VpnWidget */
+
+VpnWidget::VpnWidget(QWidget *parent) : BarPill(parent)
+{
+    setLabel(QStringLiteral("VPN"));
+    connect(VpnState::instance(), &VpnState::changed, this,
+            &VpnWidget::sync);
+    connect(this, &BarPill::clicked, VpnState::instance(),
+            &VpnState::toggle);
+    connect(this, &BarPill::rightClicked, VpnState::instance(),
+            &VpnState::refresh);
     sync();
 }
 
 void VpnWidget::sync()
 {
-    setIcon(m_up ? glyph(U'\U000F099D') : glyph(U'\U000F099E'));
-    setTint(m_up ? Theme::success : Theme::red);
-    setActive(m_up);
+    const bool up = VpnState::instance()->up;
+    setIcon(up ? glyph(U'\U000F099D') : glyph(U'\U000F099E'));
+    setTint(up ? Theme::success : Theme::red);
+    setActive(up);
 }

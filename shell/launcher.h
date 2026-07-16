@@ -94,9 +94,12 @@ protected:
     void resizeEvent(QResizeEvent *) override;
     void showEvent(QShowEvent *) override;
     bool eventFilter(QObject *o, QEvent *e) override;
+    void keyPressEvent(QKeyEvent *) override;
+    bool event(QEvent *) override;
     void paintEvent(QPaintEvent *) override;
 
 private:
+    bool handleKey(QKeyEvent *k);
     void layoutBox();
 
     AppLauncher *m_l;

@@ -86,6 +86,8 @@ dwm-qs-shell ipc call launcher toggle   # centered .desktop app launcher
 dwm-qs-shell ipc call runner toggle     # $PATH executable runner
 dwm-qs-shell ipc call dunst toggle      # pause/unpause notifications
 dwm-qs-shell ipc call dunst refresh
+dwm-qs-shell ipc call vpn toggle        # WireGuard tunnel up/down
+dwm-qs-shell ipc call vpn refresh       # re-read state (no interval polling)
 ```
 
 (`show`/`hide` are also accepted for `launcher` and `runner`.)
@@ -128,8 +130,9 @@ Escape to close).
 - **Volume/mic** (`shell/volume.cpp`) — native libpulse against
   pipewire-pulse; no script. Scroll = adjust output, right-click = mute,
   click = popup with output/mic sliders + output-device switch.
-- **VPN** (`shell/pills.cpp`) — polls `dwm-qs-vpn`; click toggles the
-  WireGuard `tun1` tunnel (green shield = up).
+- **VPN** (`shell/pills.cpp`) — event-driven via `dwm-qs-vpn`; no polling.
+  Click (or `ipc call vpn toggle`) toggles the WireGuard `tun1` tunnel
+  (green shield = up); right-click (or `ipc call vpn refresh`) re-reads state.
 - **Network** (`shell/network.cpp`) — driven by `dwm-qs-net`. On
   NetworkManager: Wi-Fi scan/list/connect (inline password)/disconnect +
   Wi-Fi radio toggle. On the bridge desktop: bridge/VLAN link status with

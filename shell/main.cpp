@@ -81,6 +81,10 @@ int main(int argc, char *argv[])
                 []() { DunstService::instance()->toggle(); });
     ipc->handle(QStringLiteral("dunst"), QStringLiteral("refresh"),
                 []() { DunstService::instance()->refresh(); });
+    ipc->handle(QStringLiteral("vpn"), QStringLiteral("toggle"),
+                []() { VpnState::instance()->toggle(); });
+    ipc->handle(QStringLiteral("vpn"), QStringLiteral("refresh"),
+                []() { VpnState::instance()->refresh(); });
     ipc->listen();
 
     return app.exec();

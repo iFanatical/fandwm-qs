@@ -59,20 +59,40 @@ private:
     void sync();
 };
 
-/* WireGuard tun1 indicator/toggle. */
+/* WireGuard tun1 state (dwm-qs-vpn). No polling: the status is read once at
+ * startup and refreshed whenever it is toggled — via the pill or
+ * `dwm-qs-shell ipc call vpn toggle`. Singleton so every panel's pill and
+ * the IPC handler share one state. */
+class VpnState : public QObject {
+    Q_OBJECT
+public:
+    static VpnState *instance();
+
+    bool up = false;
+    QString ip;
+
+    void refresh();
+    void toggle();
+
+signals:
+    void changed();
+
+private:
+    explicit VpnState(QObject *parent = nullptr);
+    void parse(const QString &text);
+
+    CollectorProcess m_statusProc;
+    CollectorProcess m_toggleProc;
+};
+
+/* WireGuard indicator/toggle pill. Click = toggle, right-click = refresh. */
 class VpnWidget : public BarPill {
     Q_OBJECT
 public:
     explicit VpnWidget(QWidget *parent = nullptr);
 
 private:
-    void parse(const QString &text);
     void sync();
-
-    bool m_up = false;
-    QString m_ip;
-    CollectorProcess m_statusProc;
-    CollectorProcess m_toggleProc;
 };
 
 #endif

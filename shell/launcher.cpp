@@ -1,5 +1,6 @@
 #include "launcher.h"
 
+#include <QApplication>
 #include <QGuiApplication>
 #include <QIcon>
 #include <QKeyEvent>
@@ -8,6 +9,8 @@
 #include <QProcess>
 #include <QTimer>
 #include <QWheelEvent>
+
+#include "popup.h"
 
 /* ------------------------------------------------------------- AppLauncher */
 
@@ -348,6 +351,11 @@ void LauncherWindow::layoutBox()
 
 void LauncherWindow::openOn(QScreen *screen)
 {
+    /* A bar popup holds an X keyboard grab while open; if one is up when the
+     * launcher appears, every keystroke (Return included) goes to it instead
+     * of the search field. Drop it before taking focus. */
+    PopupManager::closeCurrent();
+
     m_search->blockSignals(true);
     m_search->clear();
     m_search->blockSignals(false);
@@ -385,37 +393,65 @@ void LauncherWindow::mousePressEvent(QMouseEvent *e)
         m_l->hideLauncher();
 }
 
+bool LauncherWindow::handleKey(QKeyEvent *k)
+{
+    const bool ctrl = k->modifiers() & Qt::ControlModifier;
+    if (k->key() == Qt::Key_Escape) {
+        m_l->hideLauncher();
+        return true;
+    }
+    if (k->key() == Qt::Key_Return || k->key() == Qt::Key_Enter) {
+        m_l->launchSelected();
+        return true;
+    }
+    if (k->key() == Qt::Key_Down || (k->key() == Qt::Key_N && ctrl)) {
+        m_l->move(AppLauncher::columns);
+        return true;
+    }
+    if (k->key() == Qt::Key_Up || (k->key() == Qt::Key_P && ctrl)) {
+        m_l->move(-AppLauncher::columns);
+        return true;
+    }
+    if (k->key() == Qt::Key_Right || (k->key() == Qt::Key_F && ctrl)) {
+        m_l->move(1);
+        return true;
+    }
+    if (k->key() == Qt::Key_Left || (k->key() == Qt::Key_B && ctrl)) {
+        m_l->move(-1);
+        return true;
+    }
+    return false;
+}
+
 bool LauncherWindow::eventFilter(QObject *o, QEvent *e)
 {
-    if (o == m_search && e->type() == QEvent::KeyPress) {
-        auto *k = static_cast<QKeyEvent *>(e);
-        const bool ctrl = k->modifiers() & Qt::ControlModifier;
-        if (k->key() == Qt::Key_Escape) {
-            m_l->hideLauncher();
-            return true;
-        }
-        if (k->key() == Qt::Key_Return || k->key() == Qt::Key_Enter) {
-            m_l->launchSelected();
-            return true;
-        }
-        if (k->key() == Qt::Key_Down || (k->key() == Qt::Key_N && ctrl)) {
-            m_l->move(AppLauncher::columns);
-            return true;
-        }
-        if (k->key() == Qt::Key_Up || (k->key() == Qt::Key_P && ctrl)) {
-            m_l->move(-AppLauncher::columns);
-            return true;
-        }
-        if (k->key() == Qt::Key_Right || (k->key() == Qt::Key_F && ctrl)) {
-            m_l->move(1);
-            return true;
-        }
-        if (k->key() == Qt::Key_Left || (k->key() == Qt::Key_B && ctrl)) {
-            m_l->move(-1);
-            return true;
-        }
-    }
+    if (o == m_search && e->type() == QEvent::KeyPress
+            && handleKey(static_cast<QKeyEvent *>(e)))
+        return true;
     return QWidget::eventFilter(o, e);
+}
+
+/* Fallback for keys that land on the window itself (focus not yet handed to
+ * the search field, e.g. right after dwm maps and focuses us): action keys
+ * work regardless, and printable input is forwarded into the field. */
+void LauncherWindow::keyPressEvent(QKeyEvent *k)
+{
+    if (handleKey(k))
+        return;
+    if (!k->text().isEmpty() && m_search && !m_search->hasFocus()) {
+        m_search->setFocus(Qt::OtherFocusReason);
+        QApplication::sendEvent(m_search, k);
+        return;
+    }
+    QWidget::keyPressEvent(k);
+}
+
+bool LauncherWindow::event(QEvent *e)
+{
+    /* Re-assert search focus whenever the WM activates us. */
+    if (e->type() == QEvent::WindowActivate && m_search)
+        m_search->setFocus(Qt::OtherFocusReason);
+    return QWidget::event(e);
 }
 
 void LauncherWindow::paintEvent(QPaintEvent *)
