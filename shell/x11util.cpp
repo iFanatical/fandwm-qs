@@ -49,4 +49,24 @@ void ungrabKeyboard()
     XFlush(dpy);
 }
 
+quintptr currentInputFocus()
+{
+    Display *dpy = xdisplay();
+    if (!dpy)
+        return 0;
+    Window prev = None;
+    int revert = 0;
+    XGetInputFocus(dpy, &prev, &revert);
+    return (prev == None || prev == PointerRoot) ? 0 : (quintptr)prev;
+}
+
+void restoreInputFocus(quintptr prev)
+{
+    Display *dpy = xdisplay();
+    if (!dpy || !prev)
+        return;
+    XSetInputFocus(dpy, (Window)prev, RevertToParent, CurrentTime);
+    XFlush(dpy);
+}
+
 } /* namespace X11Util */

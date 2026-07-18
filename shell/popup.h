@@ -47,6 +47,7 @@ protected:
     /* false for submenus: they must not close their parent via
      * PopupManager (TrayMenu.qml topLevel). */
     bool m_manageAsTopLevel = true;
+    quintptr m_prevFocus = 0;
 };
 
 /* A popup whose height follows its content column (Popup.qml pattern:

@@ -14,6 +14,11 @@ void setDock(quintptr wid);
 bool grabKeyboard(quintptr wid);
 void ungrabKeyboard();
 
+/* X input focus bookkeeping for popups: Qt's requestActivate() moves focus
+ * to the popup; these let us remember and hand back the client that had it. */
+quintptr currentInputFocus();
+void restoreInputFocus(quintptr prev);
+
 } /* namespace X11Util */
 
 #endif

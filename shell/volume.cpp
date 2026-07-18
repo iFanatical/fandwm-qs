@@ -519,8 +519,10 @@ void VolumePopup::rebuildDevices()
 
     auto *dl = static_cast<QVBoxLayout *>(m_deviceBox->layout());
     while (QLayoutItem *it = dl->takeAt(0)) {
-        if (it->widget())
+        if (it->widget()) {
+            it->widget()->hide(); /* deleteLater leaves it painted a tick */
             it->widget()->deleteLater();
+        }
         delete it;
     }
     for (const PulseBackend::Sink &s : pa->sinks) {

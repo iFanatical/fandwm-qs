@@ -220,8 +220,10 @@ void BluetoothPopup::rebuild()
 
     auto *ll = static_cast<QVBoxLayout *>(m_listBox->layout());
     while (QLayoutItem *it = ll->takeAt(0)) {
-        if (it->widget())
+        if (it->widget()) {
+            it->widget()->hide(); /* deleteLater leaves it painted a tick */
             it->widget()->deleteLater();
+        }
         delete it;
     }
 

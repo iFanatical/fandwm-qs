@@ -466,8 +466,10 @@ void TrayArea::setHostsTray(bool hosts)
 void TrayArea::rebuild()
 {
     while (QLayoutItem *it = m_layout->takeAt(0)) {
-        if (it->widget())
+        if (it->widget()) {
+            it->widget()->hide(); /* deleteLater leaves it painted a tick */
             it->widget()->deleteLater();
+        }
         delete it;
     }
     const QVector<SniItem *> &items = TrayService::instance()->items;

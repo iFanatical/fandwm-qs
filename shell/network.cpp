@@ -481,8 +481,11 @@ NetworkPopup::NetworkPopup(QWidget *anchor) : ContentPopup(anchor, 360, 560)
     lay->addStretch(0);
 
     connect(NetworkState::instance(), &NetworkState::changed, this,
-            &NetworkPopup::rebuild);
-    rebuild();
+            &NetworkPopup::syncControls);
+    connect(NetworkState::instance(), &NetworkState::wifiListChanged, this,
+            &NetworkPopup::rebuildList);
+    syncControls();
+    rebuildList();
 }
 
 void NetworkPopup::openPopup()
@@ -492,7 +495,7 @@ void NetworkPopup::openPopup()
     ContentPopup::openPopup();
 }
 
-void NetworkPopup::rebuild()
+void NetworkPopup::syncControls()
 {
     NetworkState *n = NetworkState::instance();
     const bool nm = n->isNm();
@@ -535,24 +538,52 @@ void NetworkPopup::rebuild()
                                           : n->gateway)
             : QStringLiteral("no address"));
 
-    /* Rebuild the list */
+    /* Rebuild the row list only when its inputs actually changed. */
+    QStringList linksKey;
+    for (const NetworkState::Link &l : n->links)
+        linksKey << l.name + QLatin1Char('|') + l.state + QLatin1Char('|')
+                        + l.type + QLatin1Char('|') + l.addr;
+    if (nm != m_lastNm || (!nm && linksKey != m_lastLinksKey)) {
+        m_lastNm = nm;
+        m_lastLinksKey = linksKey;
+        rebuildList();
+        return;
+    }
+    m_lastLinksKey = linksKey;
+
+    if (isVisible())
+        relayout();
+}
+
+void NetworkPopup::rebuildList()
+{
+    NetworkState *n = NetworkState::instance();
+    const bool nm = n->isNm();
+
     auto *ll = static_cast<QVBoxLayout *>(m_listBox->layout());
     while (QLayoutItem *it = ll->takeAt(0)) {
-        if (it->widget())
+        if (it->widget()) {
+            it->widget()->hide(); /* deleteLater leaves it painted a tick */
             it->widget()->deleteLater();
+        }
         delete it;
     }
 
     if (nm) {
+        WifiRow *expanded = nullptr;
         for (const NetworkState::Wifi &w : n->wifiNetworks) {
             auto *row = new WifiRow(w, m_selectedSsid == w.ssid, m_listBox);
             row->onToggleExpand = [this](const QString &ssid) {
                 m_selectedSsid = (m_selectedSsid == ssid) ? QString() : ssid;
-                rebuild();
+                rebuildList();
             };
             ll->addWidget(row);
             row->show();
+            if (m_selectedSsid == w.ssid)
+                expanded = row;
         }
+        if (expanded)
+            expanded->focusPassword();
         if (n->wifiNetworks.isEmpty()) {
             auto *empty = new TextItem(m_listBox);
             empty->setPixelSize(Theme::smallFontSize);

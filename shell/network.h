@@ -92,9 +92,16 @@ public:
     void openPopup() override;
 
 private:
-    void rebuild();
+    /* Header buttons + summary: cheap, synced on every state change. */
+    void syncControls();
+    /* Row list: rebuilt only when its content actually changes (wifi-list
+     * results, backend flip, link changes, password-row expand) so the
+     * 5s status poll can't destroy a password field mid-typing. */
+    void rebuildList();
 
     QString m_selectedSsid; /* wifi row expanded for password entry */
+    bool m_lastNm = false;
+    QStringList m_lastLinksKey;
     TextItem *m_headerTitle;
     ShellButton *m_radioBtn;
     ShellButton *m_scanBtn;

@@ -2,6 +2,7 @@
 
 #include <QGuiApplication>
 #include <QKeyEvent>
+#include <QWindow>
 #include <QLayout>
 #include <QPainter>
 #include <QScreen>
@@ -49,7 +50,8 @@ ShellPopup::ShellPopup(QWidget *anchor, int popupWidth)
       m_anchor(anchor), m_width(popupWidth)
 {
     setAttribute(Qt::WA_TranslucentBackground);
-    setAttribute(Qt::WA_ShowWithoutActivating);
+    /* Not WA_ShowWithoutActivating: popups take keyboard focus while open
+     * (quickshell PopupWindow grabFocus) and hand it back on close. */
 }
 
 void ShellPopup::setAnchorOffset(const QPoint &rel)
@@ -127,6 +129,14 @@ void ShellPopup::showEvent(QShowEvent *e)
         PopupManager::opened(this);
     g_grabStack.removeAll(this);
     g_grabStack.append(this);
+    /* Focus must go through Qt (requestActivate): the xcb backend routes
+     * key events to ITS notion of the focus window, and a raw
+     * XSetInputFocus behind its back never updates that, leaving text
+     * fields in the popup deaf. Remember the X-level focus first so it can
+     * be handed back on close. */
+    m_prevFocus = X11Util::currentInputFocus();
+    if (windowHandle())
+        windowHandle()->requestActivate();
     X11Util::grabKeyboard(winId());
     emit popupVisibleChanged(true);
 }
@@ -161,15 +171,23 @@ void ShellPopup::hideEvent(QHideEvent *e)
     if (m_manageAsTopLevel)
         PopupManager::closed(this);
     g_grabStack.removeAll(this);
-    /* Hand the keyboard grab back to the popup below us (submenu case). */
+    const quintptr prev = m_prevFocus;
+    m_prevFocus = 0;
+    /* Hand focus + keyboard grab back to the popup below us (submenus). */
     for (int i = g_grabStack.size() - 1; i >= 0; i--) {
         ShellPopup *p = g_grabStack[i];
         if (p && p->isVisible()) {
+            X11Util::ungrabKeyboard();
+            if (p->windowHandle())
+                p->windowHandle()->requestActivate();
             X11Util::grabKeyboard(p->winId());
             emit popupVisibleChanged(false);
             return;
         }
     }
+    /* Ungrab before restoring so the client's FocusIn arrives as
+     * NotifyNormal, not a grab-mode event other toolkits may also ignore. */
     X11Util::ungrabKeyboard();
+    X11Util::restoreInputFocus(prev);
     emit popupVisibleChanged(false);
 }
