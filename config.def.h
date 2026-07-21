@@ -56,13 +56,13 @@ typedef struct {
 	const char *name;
 	const void *cmd;
 } Sp;
-const char *spcmd1[] = {"alacritty", "--class=Alacritty-sp", "-o", "window.dimensions.columns=120", "-o", "window.dimensions.lines=34", NULL };
+const char *spcmd1[] = {"kitty", "--class=kitty-sp", "-o", "window.dimensions.columns=120", "-o", "window.dimensions.lines=34", NULL };
 const char *spcmd2[] = {"discord", NULL };
 const char *spcmd3[] = {"mousepad", NULL };
 const char *spcmd4[] = {"TeamSpeak", NULL };
 const char *spcmd5[] = {"pavucontrol", NULL };
 static Sp scratchpads[] = {
-	{"alacritty",   spcmd1},
+	{"kitty",   spcmd1},
 	{"discord",     spcmd2},
 	{"mousepad",    spcmd3},
 	{"TeamSpeak",   spcmd4},
@@ -76,6 +76,7 @@ static const Rule rules[] = {
 
 	/* terminal */
 	{ "Alacritty",		NULL,	NULL,					0,	0,	1,	0,	-1 },
+	{ "kitty",		NULL,	NULL,					0,	0,	1,	0,	-1 },
 
 	/* browsers → tag 1 */
 	{ "Brave-browser",	NULL,	NULL,					1 << 1,	0,	0,	0,	-1 },
@@ -120,7 +121,7 @@ static const Rule rules[] = {
 	{ NULL,			NULL,	"Event Tester",				0,	0,	0,	1,	-1 },
 
 	/* scratchpads */
-	{ NULL, 		"Alacritty-sp",	NULL,	SPTAG(0),	1,	1,	0,	-1 },
+	{ NULL, 		"kitty-sp",	NULL,	SPTAG(0),	1,	1,	0,	-1 },
 	{ NULL, 		"discord",	NULL,	SPTAG(1),	1,	0,	0,	-1 },
 	{ "org.xfce.mousepad", 	NULL,		NULL,	SPTAG(2),	1,	0,	0,	-1 },
 	{ "Org.xfce.mousepad", 	NULL,		NULL,	SPTAG(2),	1,	0,	0,	-1 },
