@@ -4,8 +4,11 @@
 #ifndef DWMQS_DESKTOPENTRY_H
 #define DWMQS_DESKTOPENTRY_H
 
+#include <QFileSystemWatcher>
 #include <QObject>
+#include <QSet>
 #include <QString>
+#include <QTimer>
 #include <QVector>
 
 class DesktopEntry {
@@ -36,8 +39,15 @@ signals:
 private:
     explicit DesktopEntries(QObject *parent = nullptr);
     void scan();
+    void watchDirs(const QSet<QString> &dirs);
 
     QVector<DesktopEntry> m_apps;
+    /* Live-reload: installs/uninstalls/edits change the .desktop database
+     * while this (long-running) process is up, unlike a one-shot launcher.
+     * Directory-level watch catches add/remove/rename; debounced so a
+     * package manager dropping many files at once triggers one rescan. */
+    QFileSystemWatcher m_watcher;
+    QTimer m_rescanTimer;
 };
 
 #endif

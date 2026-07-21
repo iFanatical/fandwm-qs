@@ -3,12 +3,11 @@
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>
-#include <QFileSystemWatcher>
+#include <QFileInfo>
 #include <QHash>
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QStandardPaths>
-#include <QTimer>
 
 /* Strip %f/%F/%u/%U/... field codes; %% -> %. */
 static QString stripFieldCodes(const QString &exec)
@@ -95,7 +94,24 @@ DesktopEntries *DesktopEntries::instance()
 
 DesktopEntries::DesktopEntries(QObject *parent) : QObject(parent)
 {
+    m_rescanTimer.setSingleShot(true);
+    m_rescanTimer.setInterval(300); /* coalesce a burst of fs events */
+    connect(&m_rescanTimer, &QTimer::timeout, this, &DesktopEntries::scan);
+    connect(&m_watcher, &QFileSystemWatcher::directoryChanged, &m_rescanTimer,
+            qOverload<>(&QTimer::start));
+    connect(&m_watcher, &QFileSystemWatcher::fileChanged, &m_rescanTimer,
+            qOverload<>(&QTimer::start));
     scan();
+}
+
+void DesktopEntries::watchDirs(const QSet<QString> &dirs)
+{
+    QStringList toAdd;
+    for (const QString &d : dirs)
+        if (!m_watcher.directories().contains(d))
+            toAdd << d;
+    if (!toAdd.isEmpty())
+        m_watcher.addPaths(toAdd);
 }
 
 void DesktopEntries::scan()
@@ -104,12 +120,16 @@ void DesktopEntries::scan()
         QStandardPaths::ApplicationsLocation);
     QHash<QString, bool> seen;
     QVector<DesktopEntry> apps;
+    QSet<QString> liveDirs;
 
     for (const QString &dir : dirs) {
+        if (QDir(dir).exists())
+            liveDirs.insert(dir);
         QDirIterator it(dir, {QStringLiteral("*.desktop")}, QDir::Files,
                         QDirIterator::Subdirectories);
         while (it.hasNext()) {
             const QString file = it.next();
+            liveDirs.insert(QFileInfo(file).absolutePath());
             QString id = QDir(dir).relativeFilePath(file);
             id.replace(QLatin1Char('/'), QLatin1Char('-'));
             if (seen.contains(id))
@@ -168,5 +188,6 @@ void DesktopEntries::scan()
     }
 
     m_apps = apps;
+    watchDirs(liveDirs);
     emit valuesChanged();
 }
